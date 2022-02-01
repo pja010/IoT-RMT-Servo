@@ -24,11 +24,16 @@
 #define LEDC_DUTY_MAX               (950)
 #define LEDC_FREQUENCY          (50) // Frequency in Hertz.
 #define MAX_ANGLE (180)
-#define ANGLE_DELTA (10)
+#define ANGLE_DELTA_INITIAL (10)
 
 static const char *TAG = "receiver";
 static rmt_channel_t example_rx_channel = RMT_CHANNEL_2;
 
+//ir codes
+static const int UP = 0xeb14;
+static const int DOWN = 0xef10;
+static const int QUICK = 0xe817;
+static const int SLOW = 0xec13;
 
 static int angle_to_duty(int angle){
     return (int)(LEDC_DUTY_MIN + (float)angle / MAX_ANGLE * (LEDC_DUTY_MAX - LEDC_DUTY_MIN));
@@ -38,6 +43,7 @@ static void example_ir_rx_task()//void *arg)
 {
 
     int angle = 0;
+    int angle_delta = ANGLE_DELTA_INITIAL;
     uint32_t addr = 0;
     uint32_t cmd = 0;
     size_t length = 0;
@@ -69,19 +75,32 @@ static void example_ir_rx_task()//void *arg)
             if (ir_parser->input(ir_parser, items, length) == ESP_OK) {
                 if (ir_parser->get_scan_code(ir_parser, &addr, &cmd, &repeat) == ESP_OK) {
                     ESP_LOGI(TAG, "Scan Code %s --- addr: 0x%04x cmd: 0x%04x", repeat ? "(repeat)" : "", addr, cmd);
-                    if (cmd == 0xeb14) { //up arrow
+                    if (cmd == UP) { //up arrow
                         ESP_LOGI(TAG, "up");
-                        if (angle + ANGLE_DELTA <= MAX_ANGLE) angle += ANGLE_DELTA;
+                        if (angle + angle_delta <= MAX_ANGLE) angle += angle_delta;
+                        else angle = MAX_ANGLE;
                         ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, angle_to_duty(angle));
                         ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
                         vTaskDelay(10);
-                    } else if (cmd == 0xef10){ // down arrow
+                    } else if (cmd == DOWN){ // down arrow
                         ESP_LOGI(TAG, "down");
-                        if (angle - ANGLE_DELTA >= 0) angle -= ANGLE_DELTA;
+                        if (angle - angle_delta >= 0) angle -= angle_delta;
+                        else angle = 0;
                         ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, angle_to_duty(angle));
                         ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
                         vTaskDelay(10);
+                    } else if (cmd == QUICK){ //quick //0xec13
+                        if (angle_delta < 30){
+                            ESP_LOGI(TAG, "quick");
+                            angle_delta++;
+                        } 
+                    } else if (cmd == SLOW){ //slow
+                        if (angle_delta > 2){
+                            ESP_LOGI(TAG, "slow");
+                            angle_delta--;
+                        } 
                     }
+                    
                 }
             }
             //after parsing the data, return spaces to ringbuffer.
