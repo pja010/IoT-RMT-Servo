@@ -128,6 +128,15 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# Example Configuration
+#
+CONFIG_EXAMPLE_IR_PROTOCOL_NEC=y
+# CONFIG_EXAMPLE_IR_PROTOCOL_RC5 is not set
+CONFIG_EXAMPLE_RMT_TX_GPIO=18
+CONFIG_EXAMPLE_RMT_RX_GPIO=19
+# end of Example Configuration
+
+#
 # Compiler options
 #
 CONFIG_COMPILER_OPTIMIZATION_DEFAULT=y
