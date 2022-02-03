@@ -14,6 +14,7 @@
 #include "esp_log.h"
 #include "driver/rmt.h"
 #include "ir_tools.h"
+#include "led_strip.h"1
 
 #define LEDC_TIMER              LEDC_TIMER_0
 #define LEDC_MODE               LEDC_LOW_SPEED_MODE
@@ -26,6 +27,11 @@
 #define MAX_ANGLE (180)
 #define ANGLE_DELTA_INITIAL (10)
 
+
+#define RMT_TX_CHANNEL RMT_CHANNEL_0
+
+#define EXAMPLE_CHASE_SPEED_MS (1000)
+
 static const char *TAG = "receiver";
 static rmt_channel_t example_rx_channel = RMT_CHANNEL_2;
 
@@ -34,6 +40,10 @@ static const int UP = 0xeb14;
 static const int DOWN = 0xef10;
 static const int QUICK = 0xe817;
 static const int SLOW = 0xec13;
+static const int RED = 0xa758;
+static const int GREEN = 0xa659;
+static const int BLUE = 0xba45;
+static const int WHITE = 0xbb44;
 
 static int angle_to_duty(int angle){
     return (int)(LEDC_DUTY_MIN + (float)angle / MAX_ANGLE * (LEDC_DUTY_MAX - LEDC_DUTY_MIN));
@@ -41,6 +51,21 @@ static int angle_to_duty(int angle){
 
 static void example_ir_rx_task()//void *arg)
 {
+    rmt_config_t config = RMT_DEFAULT_CONFIG_TX(CONFIG_EXAMPLE_RMT_TX_GPIO, RMT_TX_CHANNEL);
+    // set counter clock to 40MHz
+    config.clk_div = 2;
+
+    ESP_ERROR_CHECK(rmt_config(&config));
+    ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, 0));
+
+    // install ws2812 driver
+    led_strip_config_t strip_config = LED_STRIP_DEFAULT_CONFIG(3, (led_strip_dev_t)config.channel);
+    led_strip_t *strip = led_strip_new_rmt_ws2812(&strip_config);
+    if (!strip) {
+        ESP_LOGE(TAG, "install WS2812 driver failed");
+    }
+    // Clear LED strip (turn off all LEDs)
+    ESP_ERROR_CHECK(strip->clear(strip, 100));
 
     int angle = 0;
     int angle_delta = ANGLE_DELTA_INITIAL;
@@ -99,8 +124,25 @@ static void example_ir_rx_task()//void *arg)
                             ESP_LOGI(TAG, "slow");
                             angle_delta--;
                         } 
+                    } else if (cmd == RED){
+                        // Write RGB values to strip driver
+                        ESP_LOGI(TAG, "red");
+                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 255, 0));
+                        // Flush RGB values to LEDs
+                        ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                    } else if (cmd == GREEN){
+                        ESP_LOGI(TAG, "green");
+                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 255, 0));
+                        ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                    } else if (cmd == BLUE){
+                        ESP_LOGI(TAG, "blue");
+                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 255, 0));
+                        ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                    } else if (cmd == WHITE) {
+                        ESP_LOGI(TAG, "white");
+                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 255, 255, 255));
+                        ESP_ERROR_CHECK(strip->refresh(strip, 100));
                     }
-                    
                 }
             }
             //after parsing the data, return spaces to ringbuffer.
