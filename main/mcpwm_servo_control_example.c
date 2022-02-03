@@ -44,6 +44,9 @@ static const int RED = 0xa758;
 static const int GREEN = 0xa659;
 static const int BLUE = 0xba45;
 static const int WHITE = 0xbb44;
+static const int POWER = 0xbf40;
+static const int B_UP = 0xa35c;
+static const int B_DOWN = 0xa25d;
 
 static int angle_to_duty(int angle){
     return (int)(LEDC_DUTY_MIN + (float)angle / MAX_ANGLE * (LEDC_DUTY_MAX - LEDC_DUTY_MIN));
@@ -75,6 +78,10 @@ static void example_ir_rx_task()//void *arg)
     bool repeat = false;
     RingbufHandle_t rb = NULL;
     rmt_item32_t *items = NULL;
+
+    int rgb_value = 125;
+    int rgb_status = RED;
+    bool rgb_on = false;
 
     rmt_config_t rmt_rx_config = RMT_DEFAULT_CONFIG_RX(CONFIG_EXAMPLE_RMT_RX_GPIO, example_rx_channel);
     rmt_config(&rmt_rx_config);
@@ -126,22 +133,84 @@ static void example_ir_rx_task()//void *arg)
                         } 
                     } else if (cmd == RED){
                         // Write RGB values to strip driver
+                        rgb_status = RED;
+                        rgb_on = true;
                         ESP_LOGI(TAG, "red");
-                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 255, 0));
-                        // Flush RGB values to LEDs
+                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, rgb_value, 0, 0));
                         ESP_ERROR_CHECK(strip->refresh(strip, 100));
                     } else if (cmd == GREEN){
+                        rgb_status = GREEN;
+                        rgb_on = true;
                         ESP_LOGI(TAG, "green");
-                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 255, 0));
+                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, rgb_value, 0));
                         ESP_ERROR_CHECK(strip->refresh(strip, 100));
                     } else if (cmd == BLUE){
+                        rgb_status = BLUE;
+                        rgb_on = true;
                         ESP_LOGI(TAG, "blue");
-                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 255, 0));
+                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 0, rgb_value));
                         ESP_ERROR_CHECK(strip->refresh(strip, 100));
                     } else if (cmd == WHITE) {
+                        rgb_status = WHITE;
+                        rgb_on = true;
                         ESP_LOGI(TAG, "white");
-                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 255, 255, 255));
+                        ESP_ERROR_CHECK(strip->set_pixel(strip, 0, rgb_value, rgb_value, rgb_value));
                         ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                    } else if (cmd == POWER) {
+                        if (rgb_on) {
+                            ESP_LOGI(TAG, "power");
+                            rgb_on = false;
+                            strip->clear(strip, 100);
+                        } else {
+                            rgb_on = true;
+                            if (rgb_status == RED) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, rgb_value, 0, 0));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            } else if (rgb_status == GREEN) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, rgb_value, 0));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            } else if (rgb_status == BLUE) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 0, rgb_value));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            } else if (rgb_status == WHITE) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, rgb_value, rgb_value, rgb_value));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            }
+                        }
+                    } else if (cmd == B_UP) {
+                        if (rgb_on && rgb_value <= 245) {
+                            rgb_value = rgb_value + 10;
+                            if (rgb_status == RED) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, rgb_value, 0, 0));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            } else if (rgb_status == GREEN) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, rgb_value, 0));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            } else if (rgb_status == BLUE) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 0, rgb_value));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            } else if (rgb_status == WHITE) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, rgb_value, rgb_value, rgb_value));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            }
+                        }
+                    } else if (cmd == B_DOWN) {
+                        if (rgb_on && rgb_value >= 10) {
+                            rgb_value = rgb_value - 10;
+                            if (rgb_status == RED) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, rgb_value, 0, 0));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            } else if (rgb_status == GREEN) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, rgb_value, 0));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            } else if (rgb_status == BLUE) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, 0, 0, rgb_value));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            } else if (rgb_status == WHITE) {
+                                ESP_ERROR_CHECK(strip->set_pixel(strip, 0, rgb_value, rgb_value, rgb_value));
+                                ESP_ERROR_CHECK(strip->refresh(strip, 100));
+                            }
+                        }
                     }
                 }
             }
